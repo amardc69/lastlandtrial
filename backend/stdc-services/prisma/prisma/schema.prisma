@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PGProjects {
+  id                    String             @id
+  userId                String
+  name                  String             @db.VarChar(255)
+  description           String
+  dueDate               DateTime?          @db.Timestamptz(6)
+  status                ProjectStatus      @default(Planning)
+  progress              Int                @default(0)
+  team                  Json?
+  files                 Json?
+  tasks                 Json?
+  lastActivity          String?            @db.VarChar(255)
+  createdAt             DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime           @default(now()) @db.Timestamptz(6)
+  originatingProposalId String?            @unique
+  PGProposals           PGProposals?       @relation(fields: [originatingProposalId], references: [id], onUpdate: NoAction)
+  PGUsers               PGUsers            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGServicePricing      PGServicePricing[] @relation("ServiceInProjects")
+
+  @@index([status])
+  @@index([userId])
+}
+
+model PGProposals {
+  id                                       String             @id
+  title                                    String             @db.VarChar(255)
+  description                              String
+  deliverables                             Json
+  proposedStartDate                        DateTime?          @db.Timestamptz(6)
+  proposedEndDate                          DateTime?          @db.Timestamptz(6)
+  compensationType                         CompensationType
+  compensationAmount                       Float?             @db.Real
+  compensationCurrency                     String?            @db.VarChar(3)
+  status                                   ProposalStatus     @default(DRAFT)
+  createdAt                                DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt                                DateTime           @default(now()) @db.Timestamptz(6)
+  proposerId                               String
+  recipientId                              String
+  PGProjects                               PGProjects?
+  PGUsers_PGProposals_proposerIdToPGUsers  PGUsers            @relation("PGProposals_proposerIdToPGUsers", fields: [proposerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGUsers_PGProposals_recipientIdToPGUsers PGUsers            @relation("PGProposals_recipientIdToPGUsers", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGServicePricing                         PGServicePricing[] @relation("ServiceInProposals")
+
+  @@index([compensationType])
+  @@index([proposerId])
+  @@index([recipientId])
+  @@index([status])
+}
+
+model PGServicePricing {
+  id          String                @id
+  serviceType InfluencerServiceType
+  price       Float                 @db.Real
+  currency    String                @db.VarChar(3)
+  description String?
+  pgUserId    String
+  createdAt   DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime              @default(now()) @db.Timestamptz(6)
+  PGUsers     PGUsers               @relation(fields: [pgUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGProjects  PGProjects[]          @relation("ServiceInProjects")
+  PGProposals PGProposals[]         @relation("ServiceInProposals")
+
+  @@index([pgUserId])
+}
+
+model PGServiceSettings {
+  id                             String                @id
+  pgUserId                       String
+  serviceType                    InfluencerServiceType
+  isActive                       Boolean               @default(true)
+  minAcceptablePrice             Float?                @db.Real
+  typicalPriceRangeMin           Float?                @db.Real
+  typicalPriceRangeMax           Float?                @db.Real
+  defaultCurrency                String?               @db.VarChar(3)
+  preferredCompensationTypes     CompensationType[]
+  standardTurnaroundTime         String?
+  rushServiceAvailable           Boolean               @default(false)
+  rushServiceFeePercentage       Float?                @db.Real
+  revisionsIncluded              Int                   @default(1)
+  costPerAdditionalRevision      Float?                @db.Real
+  briefingRequirements           String?
+  creativeControlPreference      String?
+  storyboardingOffered           Boolean               @default(false)
+  scriptwritingOffered           Boolean               @default(false)
+  preferredContentFormats        String[]
+  musicLicensingApproach         String?
+  preferredPostingSchedule       String?
+  canPostOnBehalfOfBrand         Boolean               @default(false)
+  crossPromotionOffered          Boolean               @default(false)
+  crossPromotionDetails          String?
+  contentArchivalPolicy          String?
+  linkInBioDuration              String?
+  defaultExclusivityOffered      Boolean               @default(false)
+  defaultExclusivityPeriod       String?
+  defaultContentUsageRights      String?
+  defaultContentOwnership        String?
+  analyticsReportingOffered      Boolean               @default(true)
+  standardMetricsReported        String[]
+  reportingFrequency             String?
+  accessToAnalyticsPlatform      Boolean               @default(false)
+  preferredCommunicationChannels String[]
+  typicalResponseTime            String?
+  approvalWorkflowPreference     String?
+  disclosureAdherence            String                @default("Compliant with local advertising standards (e.g., #ad, #sponsored)")
+  ndaWillingness                 Boolean               @default(true)
+  additionalNotes                String?
+  createdAt                      DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt                      DateTime              @default(now()) @db.Timestamptz(6)
+  PGUsers                        PGUsers               @relation(fields: [pgUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([pgUserId, serviceType], map: "influencerServiceTypeSetting")
+  @@index([pgUserId])
+  @@index([serviceType])
+}
+
+model PGUsers {
+  id                                           String                 @id
+  userId                                       String                 @unique
+  email                                        String                 @db.VarChar(255)
+  password                                     String                 @db.VarChar(255)
+  name                                         String?                @db.VarChar(100)
+  username                                     String                 @unique @db.VarChar(100)
+  avatarurl                                    String?
+  deckurl                                      String?
+  bio                                          String?
+  followers                                    String?
+  following                                    String?
+  chatid                                       String                 @unique @db.VarChar(255)
+  category                                     InfluencerCategories[] @default([])
+  collaboratedWith                             String[]               @default([])
+  platforms                                    Platforms[]            @default([])
+  isVerified                                   Boolean                @default(false)
+  usertype                                     PGUserType             @default(USER)
+  instagramLink                                String?
+  twitterLink                                  String?
+  linkedinLink                                 String?
+  pinterestLink                                String?
+  facebookLink                                 String?
+  youtubeLink                                  String?
+  createdAt                                    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                                    DateTime               @default(now()) @db.Timestamptz(6)
+  PGProjects                                   PGProjects[]
+  PGProposals_PGProposals_proposerIdToPGUsers  PGProposals[]          @relation("PGProposals_proposerIdToPGUsers")
+  PGProposals_PGProposals_recipientIdToPGUsers PGProposals[]          @relation("PGProposals_recipientIdToPGUsers")
+  PGServicePricing                             PGServicePricing[]
+  PGServiceSettings                            PGServiceSettings[]
+  User                                         User                   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([email])
+  @@index([usertype])
+}
+
+model User {
+  id                String        @id
+  email             String        @unique @db.VarChar(255)
+  phoneNumber       String?       @unique @db.VarChar(255)
+  avatarurl         String?
+  hashedPassword    String?       @db.VarChar(255)
+  name              String?       @db.VarChar(100)
+  signupoption      SignUpOptions @default(CREDENTIALS)
+  isEmailVerified   Boolean       @default(false)
+  promotionalground Boolean       @default(false)
+  emailVerifiedAt   DateTime?     @db.Timestamptz(6)
+  twoFactorEnabled  Boolean       @default(false)
+  lastLoginAt       DateTime?     @db.Timestamptz(6)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @db.Timestamptz(6)
+  PGUsers           PGUsers?
+}
+
+enum CompensationType {
+  FIXED_FEE
+  COMMISSION_BASED
+  PRODUCT_GIFTING
+  HYBRID
+  PAID_PARTNERSHIP
+  AFFILIATE
+  USAGE_RIGHTS_FEE
+}
+
+enum Countries {
+  INDIA
+  JAPAN
+  AUSTRALIA
+  UNITED_KINGDOM
+  UNITED_STATES
+}
+
+enum InfluencerCategories {
+  LIFESTYLE
+  TRAVELLING
+  FOOD
+  VLOGGER
+  PODCASTER
+  FASHION
+  BEAUTY
+  FITNESS
+  TECH
+  MUSIC
+  SPORTS
+  GAMING
+  COMEDY
+  EDUCATION
+  BUSINESS
+  MOTIVATION
+  ART
+  SCIENCE
+  POLITICS
+  NEWS
+  HEALTH
+  SPIRITUALITY
+  PETS
+  PARENTING
+  RELATIONSHIPS
+  DIY
+  BOOKS
+  MOVIES
+  TV_SHOWS
+  ANIME
+  DANCE
+  THEATRE
+  PHOTOGRAPHY
+  DESIGN
+  WRITING
+  JOURNALISM
+}
+
+enum InfluencerServiceType {
+  YOUTUBE_SHORTS
+  YOUTUBE_VIDEO
+  YOUTUBE_COMMUNITY_POSTS
+  YOUTUBE_LIVE
+  INSTAGRAM_LIVE
+  INSTAGRAM_STORY
+  INSTAGRAM_REEL
+  INSTAGRAM_POST
+  TWITTER_TWEET
+  TWITTER_VIDEO
+  TWITTER_SPACE
+  TWITTER_THREAD
+  LINKEDIN_POST
+  LINKEDIN_VIDEO
+  LINKEDIN_LIVE
+  LINKEDIN_STORY
+  FACEBOOK_REEL
+  FACEBOOK_POST
+  FACEBOOK_LIVE
+  PINTEREST_PIN
+  PINTEREST_VIDEO_PIN
+  PINTEREST_STORY_PIN
+  PINTEREST_IDEA_PIN
+}
+
+enum PGUserType {
+  USER
+  INFLUENCER
+  BUSINESS
+}
+
+enum Platforms {
+  INSTAGRAM
+  TWITTER
+  LINKEDIN
+  YOUTUBE
+  FACEBOOK
+  PINTEREST
+  TIKTOK
+  SNAPCHAT
+  DISCORD
+  REDDIT
+  TWITCH
+}
+
+enum ProjectStatus {
+  Planning
+  IN_PROGRESS
+  PENDING_REVIEW
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum ProposalStatus {
+  DRAFT
+  PENDING_REVIEW
+  VIEWED
+  NEGOTIATING
+  ACTION_REQUIRED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+  CONTRACT_SENT
+  CONTRACT_SIGNED
+  AWAITING_PAYMENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum SignUpOptions {
+  CREDENTIALS
+  GOOGLE
+  APPLE
+}
