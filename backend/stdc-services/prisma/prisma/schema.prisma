@@ -9,47 +9,51 @@ datasource db {
 }
 
 model PGProjects {
-  id                    String             @id
-  userId                String
-  name                  String             @db.VarChar(255)
-  description           String
-  dueDate               DateTime?          @db.Timestamptz(6)
-  status                ProjectStatus      @default(Planning)
-  progress              Int                @default(0)
-  team                  Json?
-  files                 Json?
-  tasks                 Json?
-  lastActivity          String?            @db.VarChar(255)
-  createdAt             DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt             DateTime           @default(now()) @db.Timestamptz(6)
-  originatingProposalId String?            @unique
-  PGProposals           PGProposals?       @relation(fields: [originatingProposalId], references: [id], onUpdate: NoAction)
-  PGUsers               PGUsers            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  PGServicePricing      PGServicePricing[] @relation("ServiceInProjects")
+  id               String             @id
+  userId           String
+  name             String             @db.VarChar(255)
+  description      String
+  dueDate          DateTime?          @db.Timestamptz(6)
+  status           ProjectStatus      @default(Planning)
+  progress         Int                @default(0)
+  team             Json?
+  files            Json?
+  tasks            Json?
+  lastActivity     String?            @db.VarChar(255)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime           @default(now()) @db.Timestamptz(6)
+  projectType      ProjectType        @default(ProjectFirst)
+  PGUsers          PGUsers            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGProposals      PGProposals[]
+  PGServicePricing PGServicePricing[] @relation("ServiceInProjects")
 
   @@index([status])
   @@index([userId])
 }
 
 model PGProposals {
-  id                                       String             @id
-  title                                    String             @db.VarChar(255)
+  id                                       String                 @id
+  title                                    String                 @db.VarChar(255)
   description                              String
-  deliverables                             Json
-  proposedStartDate                        DateTime?          @db.Timestamptz(6)
-  proposedEndDate                          DateTime?          @db.Timestamptz(6)
+  proposedStartDate                        DateTime?              @db.Timestamptz(6)
+  proposedEndDate                          DateTime?              @db.Timestamptz(6)
   compensationType                         CompensationType
-  compensationAmount                       Float?             @db.Real
-  compensationCurrency                     String?            @db.VarChar(3)
-  status                                   ProposalStatus     @default(DRAFT)
-  createdAt                                DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt                                DateTime           @default(now()) @db.Timestamptz(6)
+  compensationAmount                       Float?                 @db.Real
+  compensationCurrency                     String?                @db.VarChar(3)
+  status                                   ProposalStatus         @default(DRAFT)
+  createdAt                                DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                                DateTime               @default(now()) @db.Timestamptz(6)
   proposerId                               String
   recipientId                              String
-  PGProjects                               PGProjects?
-  PGUsers_PGProposals_proposerIdToPGUsers  PGUsers            @relation("PGProposals_proposerIdToPGUsers", fields: [proposerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  PGUsers_PGProposals_recipientIdToPGUsers PGUsers            @relation("PGProposals_recipientIdToPGUsers", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  PGServicePricing                         PGServicePricing[] @relation("ServiceInProposals")
+  platform                                 Platforms?             @default(INSTAGRAM)
+  contentType                              InfluencerServiceType?
+  executionType                            ProposalExecutionType  @default(SCHEDULED)
+  quantity                                 Int                    @default(1)
+  projectId                                String
+  PGProjects                               PGProjects             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  PGUsers_PGProposals_proposerIdToPGUsers  PGUsers                @relation("PGProposals_proposerIdToPGUsers", fields: [proposerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGUsers_PGProposals_recipientIdToPGUsers PGUsers                @relation("PGProposals_recipientIdToPGUsers", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  PGServicePricing                         PGServicePricing[]     @relation("ServiceInProposals")
 
   @@index([compensationType])
   @@index([proposerId])
@@ -259,6 +263,9 @@ enum InfluencerServiceType {
   PINTEREST_VIDEO_PIN
   PINTEREST_STORY_PIN
   PINTEREST_IDEA_PIN
+  TIKTOK_VIDEO
+  TIKTOK_LIVE
+  TIKTOK_STORY
 }
 
 enum PGUserType {
@@ -313,4 +320,14 @@ enum SignUpOptions {
   CREDENTIALS
   GOOGLE
   APPLE
+}
+
+enum ProposalExecutionType {
+  SCHEDULED
+  IMMEDIATE
+}
+
+enum ProjectType {
+  ProposalFirst
+  ProjectFirst
 }

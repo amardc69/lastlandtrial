@@ -192,37 +192,33 @@ app.use(cors({
 app.use(express.json());
 
 
-// --- API Route ---
+// --- API Route for Final Proposals ---
 app.post('/api/proposal', (req, res) => {
-    console.log("===================================");
-    console.log("🎉 New Proposal Received at:", new Date().toLocaleString());
-    console.log("===================================");
+  // Log the raw request body directly to the console
+  console.log(req.body);
 
-    // Destructure the data from the request body
-    const { selectedCards, integrationDetails, finalTotal } = req.body;
+  // Send a success response back to the client
+  res.status(200).json({ 
+      message: 'Proposal received successfully!',
+      status: 'success'
+  });
+});
 
-    // Print the received data to the console
-    console.log("\n--- Selected Services ---");
-    console.log(JSON.stringify(selectedCards, null, 2));
+// --- API Route for Saving Drafts ---
+app.post('/api/proposal/draft', (req, res) => {
+  // Log the raw request body directly to the console
+  console.log(req.body);
 
-    console.log("\n--- Integration Details ---");
-    console.log(JSON.stringify(integrationDetails, null, 2));
-
-    console.log("\n--- Final Total ---");
-    console.log(`₹${finalTotal.toLocaleString()}`);
-    
-    console.log("\n===================================\n");
-
-    // Send a success response back to the client
-    res.status(200).json({ 
-        message: 'Proposal received successfully!',
-        status: 'success'
-    });
+  // Send a success response back
+  res.status(200).json({ 
+      message: 'Draft saved successfully!',
+      status: 'success'
+  });
 });
 
 
 // --- Start Server ---
 app.listen(PORT, () => {
-    console.log(`🚀 Server is running indefinitely on http://localhost:${PORT}`);
-    console.log("Waiting for proposals... Press CTRL + C to stop.");
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log("Logging raw request bodies. Press CTRL + C to stop.");
 });

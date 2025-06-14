@@ -21,12 +21,8 @@ export const ServicesShowcase: React.FC<ServicesShowcaseProps> = ({ user }) => {
         .includes(platform.name.toLowerCase())
   );
 
-  const [selectedCards, setSelectedCards] = useState<
-    Map<string, { platform: string; content: any }>
-  >(new Map());
-  const [integrationDetails, setIntegrationDetails] = useState<
-    Map<string, IntegrationDetails>
-  >(new Map());
+  const [selectedCards, setSelectedCards] = useState<Map<string, { platform: string; content: any }>>(new Map());
+  const [integrationDetails, setIntegrationDetails] = useState<Map<string, IntegrationDetails>>(new Map());
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -58,7 +54,6 @@ export const ServicesShowcase: React.FC<ServicesShowcaseProps> = ({ user }) => {
       }
     });
 
-    // Remove details for deselected cards
     integrationDetails.forEach((_, key) => {
         if (!selectedValues.includes(key)) {
             newIntegrationDetails.delete(key);
@@ -201,6 +196,7 @@ export const ServicesShowcase: React.FC<ServicesShowcaseProps> = ({ user }) => {
                 Total Price : ₹{totalPrice.toLocaleString()}
               </h4>
               <ProposalConfirmation
+                username={user.username}
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 selectedCards={selectedCards}

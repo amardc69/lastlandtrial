@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LeftSideProps } from "../interface";
+import { ProfileSectionProps } from "../interface";
 import { sampleReviews, getRatingBreakdown, getAverageRating } from "./review-data";
 import { UserProfileHeader } from "./UserProfileHeader";
 import { ContentTab } from "./ContentTab";
@@ -11,7 +11,7 @@ import { ReviewsTab } from "./ReviewsTab";
 import { PackagesTab } from "./PackagesTab";
 import { AboutTab } from "./AboutTab";
 
-export const ProfileSection: React.FC<LeftSideProps> = ({ user, fallbacks }) => {
+export const ProfileSection: React.FC<ProfileSectionProps> = ({ user, fallbacks }) => {
   const stats = {
     followers: user.followers || "0",
     following: user.following || "0",

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
 import { SearchForm } from "./search-form";
 import { NavMain } from "./nav-main";
@@ -127,19 +126,8 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession();
 
-  const user = session?.user
-    ? {
-        name: session.user.name ?? "Unknown User",
-        email: session.user.email ?? "no-email@example.com",
-        avatar: session.user.image ?? undefined,
-      }
-    : {
-        name: "Sidemen",
-        email: "sidemen@gmail.com",
-        avatar: "/sidemen logo.jpeg"
-      };
+  const user = { name: "Sidemen", email: "sidemen@gmail.com", avatar: "/sidemen logo.jpeg" };
 
   const [searchQuery, setSearchQuery] = useState("");
 

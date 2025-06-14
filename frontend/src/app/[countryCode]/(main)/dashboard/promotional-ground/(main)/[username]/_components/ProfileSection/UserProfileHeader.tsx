@@ -5,9 +5,9 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { socialMediaIcons } from "./SocialMedia";
-import { LeftSideProps } from "../interface";
+import { ProfileSectionProps } from "../interface";
 
-interface UserProfileHeaderProps extends LeftSideProps {
+interface UserProfileHeaderProps extends ProfileSectionProps {
   stats: {
     followers: string;
     following: string;

@@ -4,17 +4,10 @@ import React from "react";
 import { AppSidebar } from "./_components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { NavActions } from "./_components/nav-actions";
-import { redirect } from "next/navigation";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DynamicBreadcrumb } from "./_components/DynamicBreadcrumb";
-import SessionWrapper from "@/providers/SessionWrapper";
 import { Toaster } from "@/components/ui/sonner"
-import { getServerSession } from "next-auth";
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { TanStackProvider } from './TanStackProvider';
 
 export const metadata: Metadata = {
   title: "Last Land",
@@ -25,16 +18,11 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // const session = await getServerSession(authOptions);
-
-  // if (!session) {
-  //   redirect("/in/auth/login");
-  // }
 
   return (
     <html lang="en">
       <body>
-        <SessionWrapper>
+        <TanStackProvider>
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
@@ -54,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Toaster />
             </SidebarInset>
           </SidebarProvider>
-        </SessionWrapper>
+        </TanStackProvider>
       </body>
     </html>
   );

@@ -10,13 +10,25 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import type { ProposalConfirmationProps, PGUser, PGProposal, MutationPayload, MutationVariables } from "../interface";
 import { ProposalSuccessToast, PlatformIcon } from "./ProposalSuccessToast";
 import { calculatePrice } from "../function";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
-import { ProposalConfirmationProps } from "../interface";
+
+
+const sendProposal = async ({ endpoint, payload }: { endpoint: string; payload: MutationPayload }): Promise<AxiosResponse['data']> => {
+  // --- Added Delay ---
+  // This will pause execution for a random duration between 2000ms (2s) and 5000ms (5s)
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 3000) + 2000));
+  const { data } = await axios.post(endpoint, payload);
+  return data;
+};
+
 
 const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
+  username,
   open,
   onOpenChange,
   selectedCards,
@@ -25,35 +37,23 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
 }) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [mode, setMode] = useState<'proposal' | 'draft'>('proposal');
+
+  const queryClient = useQueryClient();
+  const user = queryClient.getQueryData<PGUser>(['pguser', username]);
 
   const serviceFee = totalPrice * 0.10;
   const finalTotal = totalPrice + serviceFee;
+  const isDraftMode = mode === 'draft';
 
-  const onConfirm = async () => {
-    setIsSending(true);
-
-    const randomDelay = Math.floor(Math.random() * 3000) + 2000;
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
-    
-    const isDraftMode = mode === 'draft';
-
-    try {
-      const payload = {
-        selectedCards: Object.fromEntries(selectedCards),
-        integrationDetails: Object.fromEntries(integrationDetails),
-        totalPrice,
-        serviceFee,
-        finalTotal,
-        isDraft: isDraftMode,
-      };
-      
+  // --- TanStack Mutation Hook ---
+  const proposalMutation = useMutation<any, Error, MutationVariables>({
+    mutationFn: sendProposal,
+    onSuccess: (data, variables) => {
+      const { proposalCount } = variables.context;
       if (isDraftMode) {
-        await axios.post('http://localhost:3002/api/proposal/draft', payload);
-        toast.success("Proposal draft saved successfully!");
+        toast.success(`${proposalCount} proposal draft(s) have been saved successfully!`);
       } else {
-        await axios.post('http://localhost:3002/api/proposal', payload);
         toast.custom(
           (t) => (
             <ProposalSuccessToast
@@ -67,26 +67,70 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
           }
         );
       }
-
-    } catch (error) {
-      console.error(isDraftMode ? "Failed to save draft:" : "Failed to send proposal:", error);
-      toast.error(isDraftMode ? "Failed to save draft. Please try again later." : "Failed to send proposal. Please try again later.");
-    } finally {
-      setIsSending(false);
+    },
+    onError: (error) => {
+      console.error(isDraftMode ? "Failed to save drafts:" : "Failed to send proposals:", error);
+      toast.error(isDraftMode ? "Failed to save drafts. Please try again later." : "Failed to send proposals. Please try again later.");
+    },
+    onSettled: () => {
       setIsConfirmed(false);
       onOpenChange(false);
+    },
+  });
+
+  const onConfirm = () => {
+    if (!user) {
+        toast.error("User data not available. Cannot send proposal.");
+        return;
     }
+
+    const proposals: PGProposal[] = Array.from(selectedCards.entries()).map(([key, card]) => {
+      const details = integrationDetails.get(key);
+      if (!details) {
+        throw new Error(`Integration details are missing for the selected service: ${key}`);
+      }
+
+      const individualPrice = calculatePrice(card.content.basePrice, details);
+      const individualServiceFee = individualPrice * 0.10;
+      const individualFinalTotal = individualPrice + individualServiceFee;
+
+      return {
+        title: `Marketing Proposal: ${card.content.type} on ${card.platform}`,
+        description: `This proposal outlines the terms for an influencer marketing service featuring a ${card.content.type} on the ${card.platform} platform.`,
+        platform: card.platform.toUpperCase(),
+        contentType: card.content.code,
+        executionType: 'SCHEDULED',
+        proposedStartDate: new Date(details.startDate).toISOString(),
+        proposedEndDate: new Date(details.endDate).toISOString(),
+        compensationType: "FIXED_FEE",
+        compensationAmount: individualFinalTotal,
+        compensationCurrency: "INR",
+        status: isDraftMode ? 'DRAFT' : 'PENDING_REVIEW',
+        quantity: 1,
+      };
+    });
+
+    const endpoint = 'http://localhost:3001/proposals';
+
+    const payload: MutationPayload = {
+      proposals,
+      receiverId: user.id,
+      senderId: 'df367b40-a33a-4f2a-8d5d-f28d2ecb5f3a'
+    };
+
+    proposalMutation.mutate({
+      endpoint,
+      payload,
+      context: { proposalCount: proposals.length }
+    });
   };
 
   const handleContinueClick = async () => {
     setIsProcessing(true);
-    const randomDelay = Math.floor(Math.random() * 3000) + 2000;
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 1500) + 500));
     setIsProcessing(false);
     onOpenChange(true);
   };
-
-  const isDraft = mode === 'draft';
 
   return (
     <>
@@ -112,7 +156,7 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
         >
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-gray-900">
-              Review Your Proposal
+              Review Your Proposal(s)
             </DialogTitle>
           </DialogHeader>
 
@@ -122,7 +166,7 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                 ([key, { platform, content }]) => {
                   const details = integrationDetails.get(key);
                   if (!details) return null;
-                  
+
                   const price = calculatePrice(content.basePrice, details);
 
                   return (
@@ -158,7 +202,7 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                 }
               )}
             </div>
-            
+
             <div className="lg:col-span-2 flex flex-col h-full">
               <div className="border border-gray-300 rounded-lg flex flex-col h-full">
                 <div className="p-4 border-b border-gray-300 flex justify-between items-center">
@@ -172,32 +216,32 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                     option2Label="Draft"
                     value={mode}
                     onChange={(newMode) => setMode(newMode as 'proposal' | 'draft')}
-                    disabled={isSending}
+                    disabled={proposalMutation.isPending}
                   />
                 </div>
-                
+
                 <div className="flex-grow p-4 overflow-y-auto">
                   <div className="space-y-3">
                     {Array.from(selectedCards.entries()).map(([key, { platform, content }]) => {
-                       const details = integrationDetails.get(key);
+                        const details = integrationDetails.get(key);
                         if (!details) return null;
-                      const price = calculatePrice(content.basePrice, details);
-                      return (
-                        <div key={`summary-${key}`} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <PlatformIcon platform={platform} size="sm" />
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-gray-700 capitalize">{platform}</p>
-                              <Badge variant="secondary" className="font-light text-xs px-1.5 py-0.5 border-gray-300">{content.type}</Badge>
+                        const price = calculatePrice(content.basePrice, details);
+                        return (
+                          <div key={`summary-${key}`} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <PlatformIcon platform={platform} size="sm" />
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-gray-700 capitalize">{platform}</p>
+                                <Badge variant="secondary" className="font-light text-xs px-1.5 py-0.5 border-gray-300">{content.type}</Badge>
+                              </div>
                             </div>
+                            <p className="font-medium text-gray-800">₹{price.toLocaleString()}</p>
                           </div>
-                          <p className="font-medium text-gray-800">₹{price.toLocaleString()}</p>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 </div>
-                
+
                 <div className="p-4 border-t border-gray-300">
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
@@ -209,7 +253,7 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                       <p className="font-medium text-gray-800">₹{serviceFee.toLocaleString()}</p>
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                      <p className="text-lg font-medium text-gray-800 font-semibold">Total Price</p>
+                      <p className="text-lg font-semibold text-gray-800 font-semibold">Total Price</p>
                       <p className="text-2xl font-bold text-gray-900">
                         ₹{finalTotal.toLocaleString()}
                       </p>
@@ -223,7 +267,7 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                       id="confirmation"
                       checked={isConfirmed}
                       onCheckedChange={(checked: CheckedState) => setIsConfirmed(!!checked)}
-                      disabled={isSending}
+                      disabled={proposalMutation.isPending}
                       className="data-[state=checked]:bg-gray-900 data-[state=checked]:text-white mt-0.5"
                     />
                     <label htmlFor="confirmation" className="text-sm font-medium text-gray-700 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -231,11 +275,11 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                     </label>
                   </div>
                   <div className="flex justify-end gap-3">
-                    {!isDraft && (
+                    {!isDraftMode && (
                       <HoverCard>
                         <HoverCardTrigger asChild>
                           <Button
-                            disabled={!isConfirmed || isSending}
+                            disabled={!isConfirmed || proposalMutation.isPending}
                             variant="outline"
                             className="border-gray-300 cursor-pointer text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -249,18 +293,18 @@ const ProposalConfirmation: React.FC<ProposalConfirmationProps> = ({
                     )}
                     <Button
                       onClick={onConfirm}
-                      disabled={!isConfirmed || isSending}
+                      disabled={!isConfirmed || proposalMutation.isPending}
                       className={`bg-gray-900 text-white cursor-pointer hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed flex justify-center items-center transition-all duration-300 ease-in-out ${
-                        isSending ? 'w-42' : 'w-32'
+                        proposalMutation.isPending ? 'w-44' : 'w-34'
                       }`}
                     >
-                      {isSending ? (
+                      {proposalMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {isDraft ? "Saving Draft" : "Sending Proposal"}
+                          {isDraftMode ? "Saving as Draft(s)" : "Sending Proposal(s)"}
                         </>
                       ) : (
-                        isDraft ? "Save Draft" : "Send Proposal"
+                          isDraftMode ? "Save as Draft(s)" : "Send Proposal(s)"
                       )}
                     </Button>
                   </div>
